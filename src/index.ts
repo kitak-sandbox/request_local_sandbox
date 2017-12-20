@@ -1,9 +1,13 @@
-const express = require('express');
-const uuidv1 = require('uuid/v1');
-require('zone.js');
+import * as express from 'express';
+import uuidv1 = require('uuid/v1');
+import 'zone.js';
+
+interface MyRequest extends express.Request {
+    trxId: string,
+}
 
 class TrxIdVerifier {
-    verify(trxId) {
+    verify(trxId: string) {
         if (trxId === Zone.current.get('trxId')) {
             console.log(`[trxId=${trxId}] Accept`)
         } else {
@@ -13,28 +17,28 @@ class TrxIdVerifier {
 }
 
 const app = express();
-const wait = (sec) => {
+const wait = (sec: number) => {
     return new Promise((resolve) => {
         setTimeout(resolve, sec);
     });
 };
 
-app.use(function (req, res, next) {
+app.use(function (req: MyRequest, res, next) {
     const trxId = uuidv1();
     req.trxId = trxId;
     Zone.current.fork({
+        name: 'request',
         properties: {
             trxId: trxId,
         },
     }).run(next);
 });
 
-app.get('/', (req, res) => {
-    setTimeout(() => {
-        const verifier = new TrxIdVerifier();
-        verifier.verify(req.trxId)
-        res.send('Hello World!');
-    }, Math.random() * 200 + 100);
+app.get('/', async (req: MyRequest, res) => {
+    await wait(Math.random() * 200 + 100);
+    const verifier = new TrxIdVerifier();
+    verifier.verify(req.trxId)
+    res.send('Hello World!');
 });
 
 app.listen(3000, () => {
